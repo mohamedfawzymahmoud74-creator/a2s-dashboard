@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>داشبورد أداء الإعلانات — A To S Consultancy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#10131a; --surface:#171b24; --surface-2:#1e232e; --border:#282e3b;
+    --text-1:#eef1f6; --text-2:#9aa3b5; --text-3:#5f6779;
+    --spend:#5B8DEF; --msg:#FF7A59; --lead:#2FBF9F; --amber:#E8A33D; --danger:#EF5350;
+    --radius:16px; --mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:radial-gradient(circle at 15% 0%, #171d2a 0%, #10131a 55%); color:var(--text-1); font-family:'Tajawal', sans-serif; min-height:100vh; padding:28px 20px 60px;}
+  .wrap{max-width:1200px; margin:0 auto;}
+  header{display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border);}
+  .brand-eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--amber); text-transform:uppercase; margin-bottom:6px;}
+  h1{font-size:22px; font-weight:900;}
+  .sub{color:var(--text-2); font-size:13px; margin-top:4px;}
+  .status{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-3); font-family:var(--mono);}
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--lead); box-shadow:0 0 8px var(--lead);}
+  .dot.loading{background:var(--amber); box-shadow:0 0 8px var(--amber); animation:pulse 1s infinite;}
+  .dot.error{background:var(--danger); box-shadow:0 0 8px var(--danger);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  /* شريط مصدر البيانات + التحديث */
+  .source-bar{display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; margin-bottom:14px;}
+  .source-bar .sb-status{display:flex; align-items:center; gap:9px; font-size:13px; font-weight:700;}
+  .source-bar .sb-meta{display:flex; gap:18px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; color:var(--text-2);}
+  .source-bar .sb-meta b{color:var(--text-1); font-weight:600;}
+  .refresh-btn{background:var(--lead); color:#06231c; border:none; border-radius:10px; padding:9px 18px; font-family:'Tajawal'; font-weight:900; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:7px; transition:transform .1s, filter .15s;}
+  .refresh-btn:hover{filter:brightness(1.08);}
+  .refresh-btn:active{transform:scale(.97);}
+  .refresh-btn:disabled{opacity:.6; cursor:wait;}
+  .refresh-btn .ico{display:inline-block;}
+  .refresh-btn.spin .ico{animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .auto-toggle{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2); cursor:pointer; user-select:none;}
+  .auto-toggle input{accent-color:var(--lead); width:15px; height:15px; cursor:pointer;}
+
+  .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; margin-bottom:20px;}
+  .controls label{font-size:12px; color:var(--text-2); margin-left:6px;}
+  .controls input[type=date]{background:var(--surface-2); border:1px solid var(--border); color:var(--text-1); border-radius:9px; padding:7px 10px; font-family:var(--mono); font-size:13px;}
+  .controls button{background:var(--spend); color:#fff; border:none; border-radius:9px; padding:8px 16px; font-family:'Tajawal'; font-weight:700; font-size:13px; cursor:pointer;}
+  .controls button.ghost{background:transparent; border:1px solid var(--border); color:var(--text-2);}
+  .spacer{flex:1;}
+  .section-label{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin:26px 0 10px;}
+  .grid{display:grid; gap:10px;}
+  .grid-5{grid-template-columns:repeat(5, 1fr);}
+  .grid-4{grid-template-columns:repeat(4, 1fr);}
+  .grid-3{grid-template-columns:repeat(3, 1fr);}
+  .grid-2{grid-template-columns:repeat(2, 1fr);}
+  @media(max-width:900px){ .grid-5,.grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:1fr;} .grid-2{grid-template-columns:1fr;} }
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px;}
+  .card .label{font-size:12px; color:var(--text-2); margin-bottom:8px;}
+  .card .value{font-family:var(--mono); font-size:22px; font-weight:600;}
+  .card .value small{font-size:12px; color:var(--text-3); font-weight:400;}
+  .card.accent-spend{border-right:3px solid var(--spend);}
+  .card.accent-msg{border-right:3px solid var(--msg);}
+  .card.accent-lead{border-right:3px solid var(--lead);}
+  .card.accent-amber{border-right:3px solid var(--amber);}
+  .group-title{font-size:13px; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+  .swatch{width:9px; height:9px; border-radius:3px;}
+  .chart-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px;}
+  .chart-card canvas{max-height:220px;}
+  .legend{display:flex; gap:16px; font-size:12px; color:var(--text-2); margin-top:10px;}
+  .legend span{display:flex; align-items:center; gap:6px;}
+  .legend i{width:9px; height:9px; border-radius:50%; display:inline-block;}
+  .manual-input{display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 12px; font-size:12px; color:var(--text-2);}
+  .manual-input input{width:70px; background:var(--surface); border:1px solid var(--border); color:var(--text-1); border-radius:7px; padding:5px 8px; font-family:var(--mono); text-align:center;}
+  .table-scroll{max-height:460px; overflow:auto; border-radius:12px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  thead th{position:sticky; top:0; background:var(--surface); z-index:1;}
+  th{text-align:right; padding:8px 6px; color:var(--text-2); font-weight:700; border-bottom:1px solid var(--border);}
+  td{padding:6px; border-bottom:1px solid var(--border); font-family:var(--mono);}
+  tr:hover td{background:var(--surface-2);}
+  .controls select, #cmpMetric{background:var(--surface-2); border:1px solid var(--border); color:var(--text-1); border-radius:9px; padding:7px 10px; font-family:'Tajawal'; font-size:13px;}
+  .feedback-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; text-align:center;}
+  .feedback-card .arrow{font-size:34px; font-weight:900; line-height:1;}
+  .feedback-card .pct{font-family:var(--mono); font-size:26px; font-weight:700; margin:6px 0;}
+  .feedback-card .sentence{font-size:14px; color:var(--text-2);}
+  .diff-up{color:var(--lead);} .diff-down{color:var(--danger);}
+  .note{font-size:12px; color:var(--text-3); background:var(--surface-2); border:1px dashed var(--border); border-radius:10px; padding:10px 14px; margin-top:10px; line-height:1.7;}
+  .note b{color:var(--amber);}
+
+  /* لوحة تشخيص الاتصال */
+  .diag{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-bottom:14px; font-size:12.5px; color:var(--text-2); display:none;}
+  .diag.show{display:block;}
+  .diag.err{border-color:var(--danger); color:#f0b9b7;}
+  .diag summary{cursor:pointer; font-weight:700; color:var(--text-1);}
+  .diag code{font-family:var(--mono); color:var(--amber); font-size:11.5px;}
+  .diag ul{margin:8px 20px 0;}
+  .empty-hint{text-align:center; color:var(--text-3); padding:40px 20px; font-size:13px;}
+
+  /* مكونات التحليل الجديدة */
+  .kpi-delta{font-family:var(--mono); font-size:12px; font-weight:600; display:inline-flex; align-items:center; gap:4px; margin-top:6px;}
+  .kpi-delta.up{color:var(--lead);} .kpi-delta.down{color:var(--danger);} .kpi-delta.flat{color:var(--text-3);}
+  .kpi-delta small{color:var(--text-3); font-weight:400; font-family:'Tajawal';}
+  .funnel{display:flex; flex-direction:column; gap:10px;}
+  .funnel-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .funnel-bar{height:40px; border-radius:10px; display:flex; align-items:center; padding:0 15px; color:#fff; font-family:var(--mono); font-weight:600; font-size:13px; min-width:90px; white-space:nowrap; transition:width .4s;}
+  .funnel-meta{font-size:12.5px; color:var(--text-2);}
+  .funnel-meta b{color:var(--amber); font-family:var(--mono);}
+  .share-bar{height:16px; border-radius:8px; overflow:hidden; display:flex; background:var(--surface-2); margin:6px 0 3px;}
+  .share-seg{height:100%; transition:width .4s;}
+  .share-legend{display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-2); font-family:var(--mono);}
+  .target-input{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-2);}
+  .target-input input{width:90px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-1); border-radius:8px; padding:7px 9px; font-family:var(--mono); text-align:center;}
+  .stat-pill{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:11px 12px; text-align:center;}
+  .stat-pill .l{font-size:11px; color:var(--text-2);}
+  .stat-pill .v{font-family:var(--mono); font-size:17px; font-weight:600; margin-top:5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand-eyebrow">A To S Consultancy &middot; Meta Ads</div>
+      <h1>داشبورد أداء الإعلانات</h1>
+      <div class="sub">رسايل مقابل ليدز — بيانات مباشرة من Google Sheets</div>
+    </div>
+    <div class="status"><span class="dot" id="hdrDot"></span><span id="hdrStatus">جاري تحميل الداتا…</span></div>
+  </header>
+
+  <!-- شريط مصدر البيانات + زر التحديث -->
+  <div class="source-bar">
+    <div class="sb-status"><span class="dot" id="srcDot"></span><span id="srcState">الاتصال بالشيت…</span></div>
+    <div class="sb-meta">
+      <span>آخر تحديث: <b id="lastUpdated">—</b></span>
+      <span>عدد الأيام: <b id="rowCount">—</b></span>
+      <span>الفترة: <b id="rangeInfo">—</b></span>
+    </div>
+    <div class="spacer"></div>
+    <label class="auto-toggle"><input type="checkbox" id="autoRefresh"> تحديث تلقائي كل 5 دقايق</label>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadData(true)"><span class="ico">🔄</span> تحديث البيانات</button>
+  </div>
+
+  <!-- لوحة تشخيص (تظهر فقط لو فيه مشكلة أو ملاحظة) -->
+  <details class="diag" id="diagBox">
+    <summary id="diagSummary">تفاصيل الاتصال بالمصدر</summary>
+    <div id="diagBody"></div>
+  </details>
+
+  <div class="section-label">ملخص تنفيذي — آخر <span id="execWin">30</span> يوم مقابل الفترة السابقة</div>
+  <div class="grid grid-3" id="execCards"></div>
+
+  <div class="controls">
+    <label>من</label><input type="date" id="dateFrom">
+    <label>إلى</label><input type="date" id="dateTo">
+    <button onclick="render()">تطبيق</button>
+    <div class="spacer"></div>
+    <button class="ghost" onclick="resetRange()">كل الفترة</button>
+  </div>
+
+  <div class="section-label">١ — نظرة عامة</div>
+  <div class="grid grid-5" id="overviewCards"></div>
+  <div class="grid grid-3" style="margin-top:10px;" id="customerCards"></div>
+
+  <div class="section-label">٢ — تفصيل الرسايل والليدز</div>
+  <div class="grid grid-2">
+    <div class="card accent-msg">
+      <div class="group-title"><span class="swatch" style="background:var(--msg)"></span>الرسايل</div>
+      <div class="grid grid-3" id="msgBreakdown" style="gap:8px;"></div>
+    </div>
+    <div class="card accent-lead">
+      <div class="group-title"><span class="swatch" style="background:var(--lead)"></span>الليدز</div>
+      <div class="grid grid-3" id="leadBreakdown" style="gap:8px;"></div>
+    </div>
+  </div>
+
+  <div class="section-label">٣ — عملاء اتقفل معاهم الديل <span style="color:var(--text-3);font-size:10px;">(إدخال يدوي)</span></div>
+  <div class="grid grid-3" id="manualInputs"></div>
+
+  <div class="section-label">٤ — مسار التحويل</div>
+  <div class="chart-card">
+    <div id="funnel" class="funnel"></div>
+    <div class="note">من الظهور للنقرة للنتيجة للصفقة المقفولة — النِسَب جنب كل مرحلة بتقولك فين بيحصل التسريب. «صفقات مقفولة» بتيجي من الإدخال اليدوي فوق.</div>
+  </div>
+
+  <div class="section-label">٥ — كفاءة التكلفة مقابل الهدف</div>
+  <div class="chart-card">
+    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+      <div class="target-input"><span>تكلفة النتيجة المستهدفة</span><input type="number" id="targetCPR" min="0" placeholder="مثلاً 60" onchange="updateTarget(this.value)"><span>AED</span></div>
+      <div style="font-size:12px; color:var(--text-3);">حطّ الهدف والأيام اللي فوقه هتبان بالأحمر على الشارت.</div>
+    </div>
+    <canvas id="chartEff"></canvas>
+    <div class="grid grid-3" id="effStats" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="section-label">٦ — الأداء حسب يوم الأسبوع</div>
+  <div class="grid grid-2">
+    <div class="chart-card"><div style="font-size:12px; color:var(--text-2); margin-bottom:6px;">متوسط النتائج لكل يوم</div><canvas id="chartDOW"></canvas></div>
+    <div class="chart-card"><div style="font-size:12px; color:var(--text-2); margin-bottom:6px;">متوسط تكلفة النتيجة لكل يوم (AED)</div><canvas id="chartDOWCost"></canvas></div>
+  </div>
+
+  <div class="section-label">٧ — توزيع الصرف والنتائج (رسايل مقابل ليدز)</div>
+  <div class="grid grid-2">
+    <div class="chart-card">
+      <div style="font-size:13px; font-weight:700; margin-bottom:8px;">نسبة الصرف</div>
+      <div id="mixSpend"></div>
+      <div style="font-size:13px; font-weight:700; margin:18px 0 8px;">نسبة النتائج</div>
+      <div id="mixResults"></div>
+    </div>
+    <div class="chart-card"><div style="font-size:12px; color:var(--text-2); margin-bottom:6px;">توزيع النتائج عبر الزمن</div><canvas id="chartMix"></canvas></div>
+  </div>
+
+  <div class="section-label">٨ — الاتجاه اليومي</div>
+  <div class="grid grid-2">
+    <div class="chart-card">
+      <div style="font-size:12px; color:var(--text-2);">الصرف مقابل الليدز</div>
+      <canvas id="chartLeads"></canvas>
+      <div class="legend"><span><i style="background:var(--spend)"></i>الصرف</span><span><i style="background:var(--lead)"></i>الليدز</span></div>
+    </div>
+    <div class="chart-card">
+      <div style="font-size:12px; color:var(--text-2);">الصرف مقابل الرسايل</div>
+      <canvas id="chartMsgs"></canvas>
+      <div class="legend"><span><i style="background:var(--spend)"></i>الصرف</span><span><i style="background:var(--msg)"></i>الرسايل</span></div>
+    </div>
+  </div>
+
+  <div class="section-label">٩ — مقارنة فترتين</div>
+  <div class="chart-card" style="margin-bottom:14px;">
+    <div class="grid grid-2" style="margin-bottom:14px;">
+      <div>
+        <div style="font-size:12px; color:var(--msg); font-weight:700; margin-bottom:6px;">الفترة الأولى</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <input type="date" id="cmpAFrom">
+          <input type="date" id="cmpATo">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--lead); font-weight:700; margin-bottom:6px;">الفترة الثانية</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <input type="date" id="cmpBFrom">
+          <input type="date" id="cmpBTo">
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <label style="font-size:12px; color:var(--text-2);">قارن من ناحية</label>
+      <select id="cmpMetric" onchange="renderComparison()">
+        <option value="total_spend">الصرف</option>
+        <option value="total_results">النتائج (إجمالي)</option>
+        <option value="msg_results">عدد الرسايل</option>
+        <option value="lead_results">عدد الليدز</option>
+        <option value="msg_spend">صرف الرسايل</option>
+        <option value="lead_spend">صرف الليدز</option>
+      </select>
+      <button type="button" onclick="renderComparison()">قارن</button>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom:14px;">
+    <div class="chart-card">
+      <div style="font-size:13px; font-weight:700; color:var(--msg); margin-bottom:10px;">الفترة الأولى <span id="periodALabel" style="font-size:11px; color:var(--text-3); font-weight:400;"></span></div>
+      <table><tbody id="tableA"></tbody></table>
+    </div>
+    <div class="chart-card">
+      <div style="font-size:13px; font-weight:700; color:var(--lead); margin-bottom:10px;">الفترة الثانية <span id="periodBLabel" style="font-size:11px; color:var(--text-3); font-weight:400;"></span></div>
+      <table><tbody id="tableB"></tbody></table>
+    </div>
+  </div>
+
+  <div id="comparisonResult"></div>
+
+  <div class="section-label">١٠ — السجل اليومي</div>
+  <div class="chart-card">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>التاريخ</th><th>اليوم</th><th>صرف الرسايل</th><th>رسايل</th>
+            <th>صرف الليدز</th><th>ليدز</th><th>CTR</th><th>CPM</th><th>التكرار</th>
+          </tr>
+        </thead>
+        <tbody id="dailyTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   إعدادات مصدر البيانات — Google Sheets (منشور على الويب)
+   ============================================================ */
+const PUB_TOKEN = '2PACX-1vSvvgVBpJov5eY0_H_3bbw_yWO8ByfZ4xysE36z1DDKWVSRjImtICVx70kjMJnnjQ7E2NTdv7DeSsjL';
+const SHEET_GID = '1736689633';   // (احتياطي — مش مستخدم حالياً)
+const CSV_URL = `https://docs.google.com/spreadsheets/d/e/${PUB_TOKEN}/pub?output=csv`;
+const AUTO_MS = 5 * 60 * 1000;    // 5 دقايق
+
+let RECORDS = [];
+let HAS_TOTAL_SPEND = false, HAS_TOTAL_RESULTS = false;
+let chartLeads, chartMsgs, chartEff, chartDOW, chartDOWCost, chartMix, autoTimer = null;
+
+/* ============================ أدوات مساعدة ============================ */
+function fmt(n){ return n===null||n===undefined||isNaN(n) ? '—' : Number(n).toLocaleString('en-US',{maximumFractionDigits:2}); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function num(v){
+  if(v===null||v===undefined) return 0;
+  const s = String(v).replace(/[^\d.\-]/g,'');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+function toISO(v){
+  if(v===null||v===undefined) return null;
+  const s = String(v).trim();
+  if(!s) return null;
+  let m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);      // YYYY-MM-DD
+  if(m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/);         // D/M/Y أو M/D/Y
+  if(m){
+    let a=+m[1], b=+m[2], y=m[3]; if(y.length===2) y='20'+y;
+    let mo, da;
+    if(a>12){ da=a; mo=b; } else if(b>12){ mo=a; da=b; } else { da=a; mo=b; } // نفترض يوم/شهر
+    return `${y}-${pad(mo)}-${pad(da)}`;
+  }
+  const d = new Date(s);
+  if(!isNaN(d.getTime())) return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return null;
+}
+function dowName(iso){
+  const d = new Date(iso+'T00:00:00');
+  return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+}
+
+/* ============================ تحليل CSV ============================ */
+function parseCSV(text){
+  const rows = []; let cur = [], field = '', inQ = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQ){
+      if(c === '"'){ if(text[i+1] === '"'){ field+='"'; i++; } else inQ=false; }
+      else field += c;
+    } else {
+      if(c === '"') inQ = true;
+      else if(c === ','){ cur.push(field); field=''; }
+      else if(c === '\n'){ cur.push(field); rows.push(cur); cur=[]; field=''; }
+      else if(c === '\r'){ /* تجاهل */ }
+      else field += c;
+    }
+  }
+  if(field.length || cur.length){ cur.push(field); rows.push(cur); }
+  return rows.filter(r => r.some(x => String(x).trim() !== ''));
+}
+
+/* ============================ اكتشاف الأعمدة ============================ */
+const ALIASES = {
+  date:        ['date','التاريخ','tarikh','اليوم','day date'],
+  objective:   ['objective','result type','result indicator','type','الهدف','النتيجة','goal','optimization'],
+  spend:       ['amount spent','spend','cost','amount','الصرف','المبلغ','المصروف','تكلفة'],
+  results:     ['results','result','conversions','النتائج','عدد النتائج'],
+  msg_spend:   ['spent message','messages spend','msg spend','message spend','spend messages','صرف الرسايل','صرف الرسائل','رسائل صرف'],
+  msg_results: ['messaging conversations started','messages results','msg results','messages','msg','عدد الرسايل','الرسايل','الرسائل','رسايل','محادثات'],
+  lead_spend:  ['spent lead','leads spend','lead spend','spend leads','صرف الليدز','صرف العملاء المحتملين','ليدز صرف'],
+  lead_results:['leads results','lead results','leads','lead','عدد الليدز','الليدز','ليدز','عملاء محتملين'],
+  impressions: ['impressions','impr','مرات الظهور','الظهور','ظهور'],
+  clicks:      ['link clicks','clicks all','clicks','النقرات','نقرات','النقر'],
+  ctr:         ['ctr all','ctr','click through rate','نسبة النقر','معدل النقر'],
+  cpm:         ['cpm','cost per 1000 impressions','cost per mille','تكلفة الألف','تكلفة الالف'],
+  frequency:   ['frequency','freq','التكرار','معدل التكرار'],
+  reach:       ['reach','الوصول','مدى الوصول'],
+  total_spend: ['total spend','إجمالي الصرف','اجمالي الصرف','الصرف الكلي'],
+  total_results:['total result','total results','إجمالي النتائج','اجمالي النتائج','النتائج الكلية']
+};
+const FIELD_ORDER = ['date','msg_spend','lead_spend','msg_results','lead_results','total_spend','total_results','objective','spend','results','impressions','clicks','ctr','cpm','frequency','reach'];
+
+function matchField(headerNorm, field){
+  return ALIASES[field].some(a => {
+    a = norm(a);
+    return headerNorm === a || headerNorm.includes(a);
+  });
+}
+function detectMapping(headers){
+  const hn = headers.map(norm);
+  const map = {}; const used = new Set();
+  for(const field of FIELD_ORDER){
+    for(let i=0;i<hn.length;i++){
+      if(used.has(i) || !hn[i]) continue;
+      if(matchField(hn[i], field)){ map[field]=i; used.add(i); break; }
+    }
+  }
+  return map;
+}
+function findHeaderRow(rows){
+  let best = 0, bestScore = -1;
+  for(let i=0;i<Math.min(rows.length,12);i++){
+    const hn = rows[i].map(norm);
+    let score = 0;
+    for(const f of FIELD_ORDER) if(hn.some(h=>h && matchField(h,f))) score++;
+    const hasDate = hn.some(h=>h && matchField(h,'date'));
+    if(hasDate) score += 3;
+    if(score > bestScore){ bestScore = score; best = i; }
+  }
+  return best;
+}
+
+/* ============================ تطبيع البيانات ============================ */
+function normalizeRecords(rows){
+  const diag = { headers:[], mapping:{}, format:'', notes:[], warnings:[] };
+  if(!rows.length){ diag.warnings.push('الملف فاضي أو مفيش صفوف.'); return {records:[], diag}; }
+
+  const hRow = findHeaderRow(rows);
+  const headers = rows[hRow];
+  const map = detectMapping(headers);
+  diag.headers = headers;
+  diag.mapping = Object.fromEntries(Object.entries(map).map(([k,i])=>[k, headers[i]]));
+
+  const body = rows.slice(hRow+1);
+  const wide = ('msg_spend' in map)||('msg_results' in map)||('lead_spend' in map)||('lead_results' in map);
+  const long = !wide && ('objective' in map) && (('spend' in map)||('results' in map));
+  diag.format = wide ? 'wide (أعمدة منفصلة للرسايل والليدز)' : long ? 'long (صف لكل هدف)' : 'غير معروف';
+
+  if(!('date' in map)) diag.warnings.push('لم يتم العثور على عمود التاريخ — تأكد إن فيه عمود اسمه Date/التاريخ.');
+
+  const byDate = {};
+  const blank = iso => ({date:iso, day:dowName(iso), msg_spend:0, msg_results:0, lead_spend:0, lead_results:0, impressions:0, clicks:0, ctr:null, cpm:null, frequency:null, _reach:0, total_spend:0, total_results:0});
+
+  HAS_TOTAL_SPEND = ('total_spend' in map);
+  HAS_TOTAL_RESULTS = ('total_results' in map);
+
+  function fill(rec, row){
+    if('impressions' in map) rec.impressions += num(row[map.impressions]);
+    if('clicks' in map)      rec.clicks      += num(row[map.clicks]);
+    if('reach' in map)       rec._reach      += num(row[map.reach]);
+    if('frequency' in map){ const fq=num(row[map.frequency]); if(fq) rec.frequency = rec.frequency===null?fq:(rec.frequency+fq)/2; }
+  }
+
+  if(wide){
+    for(const row of body){
+      const iso = 'date' in map ? toISO(row[map.date]) : null;
+      if(!iso) continue;
+      const rec = byDate[iso] || (byDate[iso]=blank(iso));
+      if('msg_spend' in map)   rec.msg_spend   += num(row[map.msg_spend]);
+      if('msg_results' in map) rec.msg_results += num(row[map.msg_results]);
+      if('lead_spend' in map)  rec.lead_spend  += num(row[map.lead_spend]);
+      if('lead_results' in map)rec.lead_results+= num(row[map.lead_results]);
+      if('total_spend' in map)   rec.total_spend   += num(row[map.total_spend]);
+      if('total_results' in map) rec.total_results += num(row[map.total_results]);
+      fill(rec, row);
+    }
+  } else if(long){
+    for(const row of body){
+      const iso = 'date' in map ? toISO(row[map.date]) : null;
+      if(!iso) continue;
+      const rec = byDate[iso] || (byDate[iso]=blank(iso));
+      const obj = norm(row[map.objective]);
+      const sp = 'spend' in map ? num(row[map.spend]) : 0;
+      const re = 'results' in map ? num(row[map.results]) : 0;
+      const isMsg = /messag|رسائل|رسايل|محادث|conversation|chat/.test(obj);
+      const isLead= /lead|ليد|عملاء محتمل|form|نموذج/.test(obj);
+      if(isMsg){ rec.msg_spend+=sp; rec.msg_results+=re; }
+      else if(isLead){ rec.lead_spend+=sp; rec.lead_results+=re; }
+      else { rec.lead_spend+=sp; rec.lead_results+=re; if(obj) diag.notes.push('هدف غير مصنّف اتحسب ضمن الليدز: "'+obj+'"'); }
+      fill(rec, row);
+    }
+  } else {
+    diag.warnings.push('تعذّر تحديد شكل الجدول (لا رسايل/ليدز منفصلة ولا عمود هدف). راجع أسماء الأعمدة.');
+  }
+
+  const records = Object.values(byDate).sort((a,b)=>a.date<b.date?-1:1);
+  // اشتقاق CTR / CPM لو مش موجودين
+  for(const r of records){
+    const spendT = r.msg_spend + r.lead_spend;
+    if(r.ctr===null && r.impressions>0) r.ctr = +(r.clicks/r.impressions*100).toFixed(2);
+    if(r.cpm===null && r.impressions>0) r.cpm = +(spendT/r.impressions*1000).toFixed(2);
+    if(r.frequency===null && r._reach>0) r.frequency = +(r.impressions/r._reach).toFixed(2);
+    if(r.ctr===null) r.ctr = 0;
+    if(r.cpm===null) r.cpm = 0;
+    if(r.frequency===null) r.frequency = 0;
+  }
+  diag.notes = [...new Set(diag.notes)];
+  if(!records.length) diag.warnings.push('لم يُقرأ أي صف صالح (تأكد من صيغة التاريخ والأرقام).');
+  return {records, diag};
+}
+
+/* ============================ التجميع ============================ */
+function agg(from, to){
+  const f = RECORDS.filter(r => r.date >= from && r.date <= to);
+  const sum = k => f.reduce((s,r)=>s+(r[k]||0), 0);
+  const msg_spend = sum('msg_spend'), msg_results = sum('msg_results');
+  const lead_spend = sum('lead_spend'), lead_results = sum('lead_results');
+  const impressions = sum('impressions'), clicks = sum('clicks');
+  const total_spend   = HAS_TOTAL_SPEND   ? sum('total_spend')   : msg_spend+lead_spend;
+  const total_results = HAS_TOTAL_RESULTS ? sum('total_results') : msg_results+lead_results;
+  return {
+    rows:f, msg_spend, msg_results, lead_spend, lead_results, impressions, clicks,
+    total_spend, total_results,
+    msg_cost: msg_results? msg_spend/msg_results : null,
+    lead_cost: lead_results? lead_spend/lead_results : null,
+    ctr: impressions? (clicks/impressions*100) : null,
+    cpm: impressions? ((msg_spend+lead_spend)/impressions*1000) : null,
+    freq: f.length? f.reduce((s,r)=>s+(r.frequency||0),0)/f.length : null
+  };
+}
+
+/* ============================ الإدخال اليدوي ============================ */
+function getManual(){ return JSON.parse(localStorage.getItem('a2s_manualMetrics') || '{"total":0,"msg":0,"lead":0}'); }
+function setManual(v){ localStorage.setItem('a2s_manualMetrics', JSON.stringify(v)); render(); }
+function updateManual(key, val){ const m = getManual(); m[key] = parseFloat(val)||0; setManual(m); }
+
+/* ============================ أدوات التاريخ والأهداف ============================ */
+function addDays(iso, k){ const d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+k); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function getTarget(){ return parseFloat(localStorage.getItem('a2s_targetCPR')||'0')||0; }
+function updateTarget(v){ localStorage.setItem('a2s_targetCPR', parseFloat(v)||0); renderEfficiency(); }
+
+/* ============================ الملخص التنفيذي (نافذة متحركة) ============================ */
+function renderExecutive(){
+  if(!RECORDS.length) return;
+  const maxD = RECORDS[RECORDS.length-1].date;
+  const n = Math.min(30, Math.max(1, Math.floor(RECORDS.length/2)));
+  document.getElementById('execWin').textContent = n;
+  const curFrom = addDays(maxD, -(n-1));
+  const prevTo  = addDays(curFrom, -1);
+  const prevFrom= addDays(prevTo, -(n-1));
+  const cur = agg(curFrom, maxD), prev = agg(prevFrom, prevTo);
+  const cpr = d => d.total_results ? d.total_spend/d.total_results : null;
+  const metrics = [
+    {label:'الصرف',        unit:'AED', dir:'neutral', c:cur.total_spend,   p:prev.total_spend},
+    {label:'إجمالي النتائج',unit:'',    dir:'up',      c:cur.total_results, p:prev.total_results},
+    {label:'تكلفة النتيجة', unit:'AED', dir:'down',    c:cpr(cur),          p:cpr(prev)},
+    {label:'الليدز',       unit:'',    dir:'up',      c:cur.lead_results,  p:prev.lead_results},
+    {label:'الرسايل',      unit:'',    dir:'up',      c:cur.msg_results,   p:prev.msg_results},
+    {label:'CTR',          unit:'%',   dir:'up',      c:cur.ctr,           p:prev.ctr},
+  ];
+  document.getElementById('execCards').innerHTML = metrics.map(m=>{
+    const delta = (m.p && m.p!==0 && m.c!=null) ? ((m.c-m.p)/m.p*100) : null;
+    let cls='flat', arrow='—';
+    if(delta!==null && Math.abs(delta)>=0.05){
+      const rising = delta>0; arrow = rising?'▲':'▼';
+      if(m.dir==='neutral') cls='flat';
+      else if(m.dir==='up') cls = rising?'up':'down';
+      else cls = rising?'down':'up';
+    }
+    return `<div class="card"><div class="label">${m.label}</div>
+      <div class="value" style="font-size:19px;">${fmt(m.c)} <small>${m.unit}</small></div>
+      <div class="kpi-delta ${cls}">${arrow} ${delta===null?'—':Math.abs(delta).toFixed(1)+'%'} <small>مقابل السابق</small></div></div>`;
+  }).join('');
+}
+
+/* ============================ مسار التحويل ============================ */
+function renderFunnel(){
+  const d = agg(document.getElementById('dateFrom').value, document.getElementById('dateTo').value);
+  const manual = getManual();
+  const stages = [
+    {label:'مرات الظهور',            val:d.impressions,   color:'#3a4560'},
+    {label:'النقرات',                val:d.clicks,        color:'#5B8DEF'},
+    {label:'النتائج (رسايل + ليدز)', val:d.total_results, color:'#E8A33D'},
+    {label:'صفقات مقفولة',           val:manual.total,    color:'#2FBF9F'},
+  ];
+  const max = stages[0].val || 1;
+  const rate = (a,b)=> b ? (a/b*100) : null;
+  const rates = [null, rate(d.clicks,d.impressions), rate(d.total_results,d.clicks), rate(manual.total,d.total_results)];
+  const rateLabels = ['','CTR','معدل التحويل للنتيجة','معدل الإغلاق'];
+  document.getElementById('funnel').innerHTML = stages.map((s,i)=>{
+    const w = Math.max(9, s.val/max*100);
+    const rTxt = rates[i]!==null ? ` · <b>${rateLabels[i]}: ${rates[i].toFixed(rates[i]<1?2:1)}%</b>` : '';
+    return `<div class="funnel-row">
+      <div class="funnel-bar" style="width:${w}%; background:${s.color};">${fmt(s.val)}</div>
+      <div class="funnel-meta">${s.label}${rTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ============================ كفاءة التكلفة مقابل الهدف ============================ */
+function renderEfficiency(){
+  const d = agg(document.getElementById('dateFrom').value, document.getElementById('dateTo').value);
+  const target = getTarget();
+  const el = document.getElementById('targetCPR'); if(document.activeElement!==el) el.value = target || '';
+  const rows = d.rows;
+  const labels = rows.map(r=>r.date.slice(5));
+  const cpr = rows.map(r=>{ const res=r.msg_results+r.lead_results, sp=r.msg_spend+r.lead_spend; return res ? +(sp/res).toFixed(2) : null; });
+  const pointColors = cpr.map(v => (v!==null && target && v>target) ? '#EF5350' : '#2FBF9F');
+
+  if(chartEff) chartEff.destroy();
+  const ds = [{label:'تكلفة النتيجة', data:cpr, borderColor:'#5B8DEF', backgroundColor:'#5B8DEF22', tension:.3, spanGaps:true, pointBackgroundColor:pointColors, pointBorderColor:pointColors, pointRadius:3.5, fill:true}];
+  if(target) ds.push({label:'الهدف', data:labels.map(()=>target), borderColor:'#E8A33D', borderDash:[6,5], pointRadius:0, tension:0, fill:false});
+  chartEff = new Chart(document.getElementById('chartEff'), {
+    type:'line', data:{labels, datasets:ds},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{y:{ticks:{color:'#5f6779',font:{size:10}},grid:{color:'#282e3b'}}, x:{ticks:{color:'#5f6779',font:{size:9}},grid:{display:false}}}}
+  });
+  const valid = cpr.filter(v=>v!==null);
+  const avg = valid.length ? valid.reduce((a,b)=>a+b,0)/valid.length : null;
+  const over = target ? cpr.filter(v=>v!==null && v>target).length : null;
+  const best = valid.length ? Math.min(...valid) : null;
+  document.getElementById('effStats').innerHTML = `
+    <div class="stat-pill"><div class="l">متوسط تكلفة النتيجة</div><div class="v">${fmt(avg)} AED</div></div>
+    <div class="stat-pill"><div class="l">أيام فوق الهدف</div><div class="v" style="color:${over>0?'var(--danger)':'var(--lead)'}">${over===null?'—':over}</div></div>
+    <div class="stat-pill"><div class="l">أفضل يوم (أقل تكلفة)</div><div class="v">${fmt(best)} AED</div></div>`;
+}
+
+/* ============================ الأداء حسب يوم الأسبوع ============================ */
+function renderDOW(){
+  const rows = agg(document.getElementById('dateFrom').value, document.getElementById('dateTo').value).rows;
+  const order = ['Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const ar = {Saturday:'السبت',Sunday:'الأحد',Monday:'الاثنين',Tuesday:'الثلاثاء',Wednesday:'الأربعاء',Thursday:'الخميس',Friday:'الجمعة'};
+  const g = {}; order.forEach(o=>g[o]={res:0,spend:0,days:0});
+  rows.forEach(r=>{ if(!g[r.day]) return; g[r.day].res+=r.msg_results+r.lead_results; g[r.day].spend+=r.msg_spend+r.lead_spend; g[r.day].days++; });
+  const labels = order.map(o=>ar[o]);
+  const avgRes = order.map(o=> g[o].days ? +(g[o].res/g[o].days).toFixed(1) : 0);
+  const avgCost= order.map(o=> g[o].res  ? +(g[o].spend/g[o].res).toFixed(1) : 0);
+  if(chartDOW) chartDOW.destroy();
+  if(chartDOWCost) chartDOWCost.destroy();
+  const barOpts = (data,color)=>({type:'bar', data:{labels, datasets:[{data, backgroundColor:color, borderRadius:6}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{y:{ticks:{color:'#5f6779',font:{size:10}},grid:{color:'#282e3b'}}, x:{ticks:{color:'#9aa3b5',font:{size:10}},grid:{display:false}}}}});
+  chartDOW = new Chart(document.getElementById('chartDOW'), barOpts(avgRes,'#E8A33D'));
+  chartDOWCost = new Chart(document.getElementById('chartDOWCost'), barOpts(avgCost,'#5B8DEF'));
+}
+
+/* ============================ توزيع الصرف والنتائج ============================ */
+function shareBar(a,b,ca,cb,la,lb){
+  const t = a+b || 1, pa = a/t*100, pb = b/t*100;
+  return `<div class="share-bar"><div class="share-seg" style="width:${pa}%;background:${ca}"></div><div class="share-seg" style="width:${pb}%;background:${cb}"></div></div>
+    <div class="share-legend"><span>${la}: ${fmt(a)} (${pa.toFixed(0)}%)</span><span>${lb}: ${fmt(b)} (${pb.toFixed(0)}%)</span></div>`;
+}
+function renderMix(){
+  const d = agg(document.getElementById('dateFrom').value, document.getElementById('dateTo').value);
+  const rows = d.rows;
+  document.getElementById('mixSpend').innerHTML   = shareBar(d.msg_spend, d.lead_spend, '#FF7A59', '#2FBF9F', 'رسايل', 'ليدز');
+  document.getElementById('mixResults').innerHTML = shareBar(d.msg_results, d.lead_results, '#FF7A59', '#2FBF9F', 'رسايل', 'ليدز');
+  const labels = rows.map(r=>r.date.slice(5));
+  if(chartMix) chartMix.destroy();
+  chartMix = new Chart(document.getElementById('chartMix'), {
+    type:'line', data:{labels, datasets:[
+      {label:'رسايل', data:rows.map(r=>r.msg_results), borderColor:'#FF7A59', backgroundColor:'#FF7A5944', fill:true, tension:.3},
+      {label:'ليدز',  data:rows.map(r=>r.lead_results), borderColor:'#2FBF9F', backgroundColor:'#2FBF9F44', fill:true, tension:.3}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{y:{stacked:true, ticks:{color:'#5f6779',font:{size:10}},grid:{color:'#282e3b'}}, x:{ticks:{color:'#5f6779',font:{size:9}},grid:{display:false}}}}
+  });
+}
+
+/* ============================ الرسم ============================ */
+function render(){
+  if(!RECORDS.length){
+    document.getElementById('overviewCards').innerHTML = '<div class="empty-hint" style="grid-column:1/-1;">مفيش بيانات معروضة بعد — اضغط «تحديث البيانات» أو راجع تفاصيل الاتصال بالأعلى.</div>';
+    return;
+  }
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  const d = agg(from, to);
+  const manual = getManual();
+
+  document.getElementById('overviewCards').innerHTML = `
+    <div class="card accent-spend"><div class="label">إجمالي الصرف</div><div class="value">${fmt(d.total_spend)} <small>AED</small></div></div>
+    <div class="card accent-amber"><div class="label">إجمالي النتائج</div><div class="value">${fmt(d.total_results)}</div></div>
+    <div class="card"><div class="label">CTR</div><div class="value">${fmt(d.ctr)}<small>%</small></div></div>
+    <div class="card"><div class="label">CPM</div><div class="value">${fmt(d.cpm)} <small>AED</small></div></div>
+    <div class="card accent-lead"><div class="label">عملاء اتقفل معاهم الديل</div><div class="value">${fmt(manual.total)}</div></div>
+  `;
+
+  const costTotal = manual.total ? d.total_spend/manual.total : null;
+  const costMsg = manual.msg ? d.msg_spend/manual.msg : null;
+  const costLead = manual.lead ? d.lead_spend/manual.lead : null;
+  document.getElementById('customerCards').innerHTML = `
+    <div class="card accent-spend"><div class="label">تكلفة العميل — إجمالي</div><div class="value">${fmt(costTotal)} <small>AED</small></div></div>
+    <div class="card accent-msg"><div class="label">تكلفة العميل — رسايل</div><div class="value">${fmt(costMsg)} <small>AED</small></div></div>
+    <div class="card accent-lead"><div class="label">تكلفة العميل — ليدز</div><div class="value">${fmt(costLead)} <small>AED</small></div></div>
+  `;
+
+  document.getElementById('msgBreakdown').innerHTML = `
+    <div><div class="label" style="font-size:11px;">الصرف</div><div class="value" style="font-size:16px;">${fmt(d.msg_spend)}</div></div>
+    <div><div class="label" style="font-size:11px;">العدد</div><div class="value" style="font-size:16px;">${fmt(d.msg_results)}</div></div>
+    <div><div class="label" style="font-size:11px;">التكلفة</div><div class="value" style="font-size:16px;">${fmt(d.msg_cost)}</div></div>
+  `;
+  document.getElementById('leadBreakdown').innerHTML = `
+    <div><div class="label" style="font-size:11px;">الصرف</div><div class="value" style="font-size:16px;">${fmt(d.lead_spend)}</div></div>
+    <div><div class="label" style="font-size:11px;">العدد</div><div class="value" style="font-size:16px;">${fmt(d.lead_results)}</div></div>
+    <div><div class="label" style="font-size:11px;">التكلفة</div><div class="value" style="font-size:16px;">${fmt(d.lead_cost)}</div></div>
+  `;
+
+  const labels = d.rows.map(r=>r.date.slice(5));
+  const spendData = d.rows.map(r=>r.msg_spend+r.lead_spend);
+  const leadData = d.rows.map(r=>r.lead_results);
+  const msgData = d.rows.map(r=>r.msg_results);
+
+  if(chartLeads) chartLeads.destroy();
+  if(chartMsgs) chartMsgs.destroy();
+  const opts = (c1,l1,c2,l2,d1,d2) => ({
+    type:'line',
+    data:{ labels, datasets:[
+      {label:l1, data:d1, borderColor:c1, backgroundColor:c1+'22', tension:.3, yAxisID:'y'},
+      {label:l2, data:d2, borderColor:c2, backgroundColor:c2+'22', tension:.3, yAxisID:'y1'}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ y:{position:'left', ticks:{color:'#5f6779', font:{size:10}}, grid:{color:'#282e3b'}},
+               y1:{position:'right', ticks:{color:'#5f6779', font:{size:10}}, grid:{display:false}},
+               x:{ticks:{color:'#5f6779', font:{size:9}}, grid:{display:false}} } }
+  });
+  chartLeads = new Chart(document.getElementById('chartLeads'), opts('#5B8DEF','الصرف','#2FBF9F','الليدز', spendData, leadData));
+  chartMsgs = new Chart(document.getElementById('chartMsgs'), opts('#5B8DEF','الصرف','#FF7A59','الرسايل', spendData, msgData));
+
+  document.getElementById('manualInputs').innerHTML = `
+    <div class="manual-input"><span>عملاء - إجمالي</span><input type="number" min="0" value="${manual.total}" onchange="updateManual('total',this.value)"></div>
+    <div class="manual-input"><span>عملاء - من الرسايل</span><input type="number" min="0" value="${manual.msg}" onchange="updateManual('msg',this.value)"></div>
+    <div class="manual-input"><span>عملاء - من الليدز</span><input type="number" min="0" value="${manual.lead}" onchange="updateManual('lead',this.value)"></div>
+  `;
+
+  document.getElementById('dailyTable').innerHTML = d.rows.slice().reverse().map(r => `
+    <tr><td>${r.date}</td><td>${r.day}</td><td>${fmt(r.msg_spend)}</td><td>${r.msg_results}</td><td>${fmt(r.lead_spend)}</td><td>${r.lead_results}</td><td>${fmt(r.ctr)}%</td><td>${fmt(r.cpm)}</td><td>${fmt(r.frequency)}</td></tr>
+  `).join('');
+
+  renderFunnel();
+  renderEfficiency();
+  renderDOW();
+  renderMix();
+}
+
+/* ============================ المقارنة ============================ */
+const METRIC_LABELS = {
+  total_spend: {name:"الصرف", unit:"AED"},
+  total_results: {name:"النتائج (إجمالي)", unit:""},
+  msg_results: {name:"عدد الرسايل", unit:""},
+  lead_results: {name:"عدد الليدز", unit:""},
+  msg_spend: {name:"صرف الرسايل", unit:"AED"},
+  lead_spend: {name:"صرف الليدز", unit:"AED"}
+};
+function buildPeriodTable(d, highlightKey){
+  return Object.keys(METRIC_LABELS).map(key => {
+    const info = METRIC_LABELS[key];
+    const isHi = key === highlightKey;
+    return `<tr style="${isHi?'background:var(--surface-2);':''}">
+      <td style="${isHi?'color:var(--text-1);font-weight:700;':'color:var(--text-2);'}">${info.name}</td>
+      <td style="text-align:left; ${isHi?'color:var(--amber);font-weight:700;':''}">${fmt(d[key])} ${info.unit}</td>
+    </tr>`;
+  }).join('');
+}
+function renderComparison(){
+  if(!RECORDS.length) return;
+  const aFrom = document.getElementById('cmpAFrom').value;
+  const aTo = document.getElementById('cmpATo').value;
+  const bFrom = document.getElementById('cmpBFrom').value;
+  const bTo = document.getElementById('cmpBTo').value;
+  const metricKey = document.getElementById('cmpMetric').value;
+  const info = METRIC_LABELS[metricKey];
+
+  const dA = agg(aFrom, aTo);
+  const dB = agg(bFrom, bTo);
+  const valA = dA[metricKey];
+  const valB = dB[metricKey];
+
+  document.getElementById('periodALabel').textContent = `(${aFrom} → ${aTo})`;
+  document.getElementById('periodBLabel').textContent = `(${bFrom} → ${bTo})`;
+  document.getElementById('tableA').innerHTML = buildPeriodTable(dA, metricKey);
+  document.getElementById('tableB').innerHTML = buildPeriodTable(dB, metricKey);
+
+  const pct = valB ? (((valA-valB)/valB)*100) : null;
+  const up = pct !== null && pct >= 0;
+  const cls = pct===null ? '' : (up ? 'diff-up' : 'diff-down');
+  const arrow = pct===null ? '—' : (up ? '▲' : '▼');
+
+  let sentence = 'مفيش بيانات كافية للمقارنة في إحدى الفترتين (تأكد إن الفترة فيها أيام مسجلة).';
+  if(pct !== null){
+    const verb = up ? 'زادت' : 'قلّت';
+    sentence = `${info.name} ${verb} بنسبة ${Math.abs(pct).toFixed(1)}% في الفترة الأولى مقارنة بالفترة الثانية.`;
+  }
+  document.getElementById('comparisonResult').innerHTML = `
+    <div class="feedback-card">
+      <div class="arrow ${cls}">${arrow}</div>
+      <div class="pct ${cls}">${pct===null?'—':Math.abs(pct).toFixed(1)+'%'}</div>
+      <div class="sentence">${sentence}</div>
+    </div>
+  `;
+}
+
+/* ============================ ضبط الفترات تلقائياً ============================ */
+function applyDateDefaults(){
+  if(!RECORDS.length) return;
+  const min = RECORDS[0].date, max = RECORDS[RECORDS.length-1].date;
+  ['dateFrom','dateTo','cmpAFrom','cmpATo','cmpBFrom','cmpBTo'].forEach(id=>{
+    const el = document.getElementById(id); el.min = min; el.max = max;
+  });
+  document.getElementById('dateFrom').value = min;
+  document.getElementById('dateTo').value = max;
+  // تقسيم الفترة نصّين للمقارنة
+  const midIdx = Math.floor(RECORDS.length/2);
+  const mid = RECORDS[Math.max(0,midIdx-1)].date;
+  const midNext = RECORDS[Math.min(RECORDS.length-1,midIdx)].date;
+  document.getElementById('cmpAFrom').value = min;
+  document.getElementById('cmpATo').value = mid;
+  document.getElementById('cmpBFrom').value = midNext;
+  document.getElementById('cmpBTo').value = max;
+}
+function resetRange(){
+  if(!RECORDS.length) return;
+  document.getElementById('dateFrom').value = RECORDS[0].date;
+  document.getElementById('dateTo').value = RECORDS[RECORDS.length-1].date;
+  render();
+}
+
+/* ============================ جلب الداتا من الشيت ============================ */
+async function fetchCSV(){
+  const bust = (CSV_URL.includes('?')?'&':'?') + '_=' + Date.now();
+  const target = CSV_URL + bust;
+  const attempts = [
+    { name:'مباشر',       url: target },
+    { name:'corsproxy.io', url: 'https://corsproxy.io/?url=' + encodeURIComponent(target) },
+    { name:'allorigins',   url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target) },
+    { name:'codetabs',     url: 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(target) },
+  ];
+  let lastErr = '';
+  for(const a of attempts){
+    try{
+      const r = await fetch(a.url, {cache:'no-store'});
+      if(!r.ok){ lastErr = a.name + ': HTTP ' + r.status; continue; }
+      const text = await r.text();
+      if(text && text.includes(',') && text.length > 20) return text;
+      lastErr = a.name + ': رد فارغ';
+    }catch(e){ lastErr = a.name + ': ' + e.message; }
+  }
+  throw new Error(lastErr || 'تعذّر الوصول للمصدر');
+}
+
+function setStatus(state){ // 'loading' | 'ok' | 'error'
+  const map = {
+    loading:{cls:'loading', hdr:'جاري تحميل الداتا…', src:'الاتصال بالشيت…'},
+    ok:{cls:'', hdr:'الداتا متصلة ومباشرة من Google Sheets', src:'متصل ✓'},
+    error:{cls:'error', hdr:'تعذّر الاتصال بالشيت', src:'فشل الاتصال'}
+  }[state];
+  ['hdrDot','srcDot'].forEach(id=>document.getElementById(id).className = 'dot '+map.cls);
+  document.getElementById('hdrStatus').textContent = map.hdr;
+  document.getElementById('srcState').textContent = map.src;
+}
+
+function showDiag(diag, errMsg){
+  const box = document.getElementById('diagBox');
+  const body = document.getElementById('diagBody');
+  const sum = document.getElementById('diagSummary');
+  const hasProblem = errMsg || (diag && (diag.warnings.length || diag.format==='غير معروف'));
+  box.classList.toggle('err', !!errMsg);
+  sum.textContent = hasProblem ? '⚠️ في مشكلة في قراءة المصدر — اضغط للتفاصيل' : 'تفاصيل الاتصال بالمصدر (اضغط للعرض)';
+
+  let html = '';
+  if(errMsg){
+    html += `<p style="margin:8px 0;color:#f0b9b7;">خطأ الاتصال: <code>${errMsg}</code></p>
+      <p style="margin:8px 0;">الأسباب المحتملة بالترتيب:</p>
+      <ol style="margin:6px 22px; line-height:1.9;">
+        <li><b style="color:var(--amber);">بتفتح الملف من جهازك مباشرة (file://)</b> — ده أشهر سبب. المتصفح بيمنع الملف المحلي إنه يسحب داتا من النت. الحل: ارفع الملف على GitHub Pages، أو شغّله عبر سيرفر محلي.</li>
+        <li>الشيت مش منشور على الويب: من Google Sheets ← File ← Share ← Publish to web ← اختَر CSV.</li>
+        <li>مانع إعلانات أو إعداد شبكة بيوقف الطلب — جرّب متصفح تاني.</li>
+      </ol>`;
+  }
+  if(diag){
+    if(diag.headers.length) html += `<p style="margin:8px 0;">الأعمدة المكتشفة: ${diag.headers.map(h=>`<code>${h||'—'}</code>`).join('، ')}</p>`;
+    if(Object.keys(diag.mapping).length){
+      html += `<p style="margin:8px 0;">الربط: </p><ul>` +
+        Object.entries(diag.mapping).map(([k,v])=>`<li><b>${k}</b> ← <code>${v}</code></li>`).join('') + `</ul>`;
+    }
+    html += `<p style="margin:8px 0;">شكل الجدول: <code>${diag.format}</code></p>`;
+    if(diag.notes.length)    html += `<p style="margin:8px 0;color:var(--amber);">ملاحظات: ${diag.notes.join(' — ')}</p>`;
+    if(diag.warnings.length) html += `<p style="margin:8px 0;color:#f0b9b7;">تنبيهات: ${diag.warnings.join(' — ')}</p>`;
+  }
+  body.innerHTML = html;
+  box.classList.toggle('show', !!hasProblem || !!(diag && diag.headers.length));
+  if(hasProblem) box.setAttribute('open','');
+}
+
+async function loadData(manualClick){
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.classList.add('spin');
+  setStatus('loading');
+  try{
+    const text = await fetchCSV();
+    const rows = parseCSV(text);
+    const {records, diag} = normalizeRecords(rows);
+    RECORDS = records;
+
+    if(!RECORDS.length){
+      setStatus('error');
+      showDiag(diag, null);
+    } else {
+      setStatus('ok');
+      showDiag(diag, null);
+      applyDateDefaults();
+      renderExecutive();
+      render();
+      renderComparison();
+    }
+    document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
+    document.getElementById('rowCount').textContent = RECORDS.length || '0';
+    document.getElementById('rangeInfo').textContent = RECORDS.length ? `${RECORDS[0].date} → ${RECORDS[RECORDS.length-1].date}` : '—';
+  }catch(e){
+    setStatus('error');
+    showDiag(null, e.message);
+    document.getElementById('overviewCards').innerHTML = '<div class="empty-hint" style="grid-column:1/-1;">تعذّر تحميل الداتا. راجع تفاصيل الاتصال بالأعلى ثم اضغط «تحديث البيانات».</div>';
+  }finally{
+    btn.disabled = false; btn.classList.remove('spin');
+  }
+}
+
+/* التحديث التلقائي */
+document.getElementById('autoRefresh').addEventListener('change', e=>{
+  if(e.target.checked){ autoTimer = setInterval(()=>loadData(false), AUTO_MS); }
+  else if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+});
+
+/* التشغيل الأول */
+loadData(false);
+</script>
+</body>
+</html>
